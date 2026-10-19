@@ -7,22 +7,24 @@ export default async function handler(req, res) {
   const { url, method = 'GET', headers = {}, body = null } = req.body || {};
   if (!url) return res.status(400).json({ error: 'missing url' });
 
-  const h = { ...headers };
+  const h = {
+    accept: 'application/json, text/plain, */*',
+    'accept-language': 'en-US,en;q=0.9',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    ...headers
+  };
   try {
     const o = new URL(url).origin;
-    if (!h['origin']) h['origin'] = o;
-    if (!h['referer']) h['referer'] = o + '/';
+    if (!h.origin) h.origin = o;
+    if (!h.referer) h.referer = o + '/';
   } catch {}
-  if (!h['user-agent']) {
-    h['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-  }
 
   try {
     const r = await fetch(url, {
       method,
       headers: h,
       body: body == null ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)),
-      redirect: 'manual'
+      redirect: 'follow'
     });
     const text = await r.text();
     const out = {};
@@ -32,6 +34,6 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ status: r.status, headers: out, text });
   } catch (e) {
-    return res.status(200).json({ status: 0, error: String(e) });
+    return res.status(200).json({ status: 0, error: String(e), text: '' });
   }
 }
