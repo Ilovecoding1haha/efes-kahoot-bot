@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Bots</title>
+<style>
+  :root{--bg:#0b0d14;--card:#151a26;--line:#252c3d;--txt:#e9eef7;--mut:#8b93a8;--acc:#7c5cff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 system-ui,sans-serif;padding:22px 16px 60px}
+  .wrap{max-width:620px;margin:0 auto}
+  h1{text-align:center;font-size:24px;margin:0 0 4px}
+  .sub{text-align:center;color:var(--mut);font-size:13px;margin:0 0 18px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{flex:1;text-align:center;padding:11px;border:1px solid var(--line);border-radius:11px;cursor:pointer;color:var(--mut);font-weight:600;background:var(--card)}
+  .tab.on{border-color:var(--acc);color:#fff;background:#1b1f33}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  label{display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);margin:0 0 6px}
+  input{width:100%;background:#0d1119;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:12px;font:15px ui-monospace,monospace}
+  input:focus{outline:none;border-color:var(--acc)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 10px}
+  .presets button{padding:14px;border:0;border-radius:12px;font:700 15px system-ui;color:#fff;cursor:pointer;background:linear-gradient(135deg,#7c5cff,#3b82f6)}
+  .presets button:disabled{opacity:.5}
+  .presets small{display:block;font-weight:500;font-size:11px;opacity:.75;margin-top:2px}
+  #test,#stop{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#1b1f33;color:#e9eef7;font:600 13px system-ui;cursor:pointer}
+  #stop{margin-top:10px}
+  .log{margin-top:16px;background:#0d1119;border:1px solid var(--line);border-radius:12px;padding:12px;height:250px;overflow:auto;font:12px ui-monospace,monospace;color:#9fe6a0;white-space:pre-wrap}
+  .log .b{color:#8b93a8}
+  .log .e{color:#ff9b9b}
+  .count{text-align:center;color:var(--mut);font-size:13px;margin-top:12px}
+  .count b{color:#7ee787}
+  .tip{color:var(--mut);font-size:12px;text-align:center;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 Game Bots</h1>
+  <p class="sub">Runs through your own Vercel server — works on school wifi.</p>
+
+  <div class="tabs">
+    <div class="tab on" data-g="kahoot">Kahoot</div>
+    <div class="tab" data-g="blooket">Blooket</div>
+    <div class="tab" data-g="wayground">Wayground</div>
+  </div>
+
+  <div class="box">
+    <div class="row">
+      <div><label id="codelbl">Game PIN</label><input id="pin" inputmode="numeric" placeholder="1234567"></div>
+      <div><label>Name prefix</label><input id="prefix" value="bot"></div>
+    </div>
+    <div class="presets">
+      <button data-n="10">10<small>bots</small></button>
+      <button data-n="30">30<small>bots</small></button>
+      <button data-n="50">50<small>bots</small></button>
+    </div>
+    <button id="test">Test with 1 bot</button>
+    <button id="stop">Stop all</button>
+    <div class="count">Live: <b id="live">0</b> · joined <b id="ok">0</b></div>
+    <p class="tip">Game must be open and waiting in the lobby.</p>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+/* ---------- proxy ---------- */
+const PX = async (url, o = {}) => {
+  try {
+    const r = await fetch('/api/px', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, method: o.method || 'GET', headers: o.headers || {}, body: o.body ?? null })
+    });
+    return await r.json();
+  } catch (e) { return { status: 0, error: String(e), text: '' }; }
+};
+
+const NAMES = ['Liam','Noah','Ethan','Mason','Lucas','Aiden','Jayden','Logan','Ryan','Tyler','Dylan','Jacob','Owen','Leo','Kai','Mia','Ava','Zoe','Lily','Emma','Ruby','Ivy','Ella','Nora','Max','Sam','Ben','Alex','Jack','Finn','Oscar','Milo','Hugo','Ezra','Theo','Rex','Nova','Sky','Ash','Jax'];
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+let live = 0, ok = 0, game = 'kahoot', bots = [];
+
+const say = (msg, cls = '') => {
+  const t = new Date().toLocaleTimeString();
+  logEl.innerHTML += `<span class="${cls}">[${t}]</span> ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+};
+const bump = () => { $('live').textContent = live; $('ok').textContent = ok; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  game = t.dataset.g;
+  $('codelbl').textContent = game === 'kahoot' ? 'Game PIN' : game === 'blooket' ? 'Game ID' : 'Join code';
+  $('pin').placeholder = game === 'kahoot' ? '1234567' : '123456';
+});
+
+/* ================= KAHOOT ================= */
+class Kahoot {
+  constructor(pin, name, idx) {
+    this.pin = pin; this.name = name; this.idx = idx;
+    this.dead = false; this.q = 0; this.idc = 10;
+  }
+
+  /* Kahoot obfuscates the token: the challenge returns a string that is XOR'd
+     against the base64-decoded x-kahoot-session-token header. */
+  solveToken(challenge, headerToken) {
+    const angular = { isString: () => true, isArray: () => true, isObject: () => true, isDate: () => true };
+    const _ = (...a) => { const s = `${a[0]}`; return a.length < 3 ? s : s.replace(a[1], a[2]); };
+
+    let decoded = '';
+    try {
+      const run = new Function('angular', '_', '__c', 'return eval(__c);');
+      decoded = run(angular, _, challenge);
+    } catch (e) {}
+    if (typeof decoded !== 'string' || !decoded.length) return '';
+
+    let enc = '';
+    try {
+      let s = headerToken.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+      while (s.length % 4) s += '=';
+      enc = atob(s);
+    } catch (e) { return ''; }
+
+    let out = '';
+    for (let i = 0; i < enc.length; i++) {
+      out += String.fromCharCode(enc.charCodeAt(i) ^ decoded.charCodeAt(i % decoded.length));
+    }
+    return out;
+  }
+
+  ts() { return { timesync: { tc: Date.now(), l: 0, o: 0 } }; }
+
+  async start() {
+    live++; bump();
+
+    const r = await PX(`https://kahoot.it/reserve/session/${this.pin}/?${Date.now()}`);
+    const raw = (r.headers && r.headers['x-kahoot-session-token']) || '';
+    if (!raw) { say(`${this.name}: ✗ bad PIN (status ${r.status})`, 'e'); live--; bump(); return; }
+
+    let challenge = '';
+    try { challenge = JSON.parse(r.text).challenge || ''; } catch (e) {}
+    const token = this.solveToken(challenge, raw);
+    if (!token) { say(`${this.name}: ✗ challenge solve failed (len ${challenge.length})`, 'e'); live--; bump(); return; }
+
+    this.hdr = { 'content-type': 'application/json', accept: 'application/json' };
+
+    // token lives in the URL path and can contain non-url-safe bytes
+    const variants = [...new Set([encodeURIComponent(token), token])];
+    let hs = null, out = null;
+    for (const v of variants) {
+      this.base = `https://kahoot.it/cometd/${this.pin}/${v}`;
+      hs = await this.post([{
+        channel: '/meta/handshake', version: '1.0', minimumVersion: '1.0',
+        supportedConnectionTypes: ['long-polling'],
+        advice: { timeout: 60000, interval: 0 },
+        ext: this.ts(), id: '1'
+      }], '/handshake');
+      try { out = JSON.parse(hs.text); } catch (e) { out = null; }
+      if (out && out[0] && out[0].clientId) break;
+    }
+    this.clientId = out && out[0] && out[0].clientId;
+
+    if (!this.clientId) {
+      say(`${this.name}: ✗ handshake ${hs && hs.status} → ${String((hs && hs.text) || '').slice(0, 120)}`, 'e');
+      live--; bump(); return;
+    }
+
+    await this.post([
+      { channel: '/meta/subscribe', clientId: this.clientId, subscription: '/service/player', id: '2', ext: this.ts() },
+      { channel: '/meta/subscribe', clientId: this.clientId, subscription: '/service/controller', id: '3', ext: this.ts() }
+    ]);
+    await this.post([{
+      channel: '/service/controller', clientId: this.clientId, id: '4', ext: this.ts(),
+      data: { type: 'login', gameid: this.pin, host: 'kahoot.it', name: this.name }
+    }]);
+
+    ok++; bump();
+    say(`✅ ${this.name} joined Kahoot`);
+    this.loop();
+  }
+
+  post(msgs, suffix = '') {
+    return PX(this.base + suffix, { method: 'POST', headers: this.hdr, body: JSON.stringify(msgs) });
+  }
+
+  async loop() {
+    while (!this.dead) {
+      const r = await this.post([{
+        channel: '/meta/connect', clientId: this.clientId,
+        connectionType: 'long-polling', id: String(++this.idc), ext: this.ts()
+      }]);
+      try { for (const m of JSON.parse(r.text)) this.onMsg(m); } catch (e) {}
+      await sleep(120);
+    }
+    live--; bump();
+  }
+
+  onMsg(m) {
+    const d = m.data;
+    if (!d || m.channel !== '/service/player') return;
+    let c = null;
+    try { c = JSON.parse(d.content); } catch (e) { return; }
+    if (!c || c.questionIndex === undefined || c.timeLeft !== undefined) return;
+    const n = (c.quizQuestionAnswers && c.quizQuestionAnswers[c.questionIndex]) || 4;
+    this.q = c.questionIndex;
+    this.answer(n);
+  }
+
+  async answer(n) {
+    await sleep(250 + Math.random() * 700);
+    if (this.dead) return;
+    await this.post([{
+      channel: '/service/controller', clientId: this.clientId, id: String(200 + this.q), ext: this.ts(),
+      data: {
+        type: 'message', gameid: this.pin, host: 'kahoot.it', id: '45',
+        content: JSON.stringify({ type: 'quiz', choice: Math.floor(Math.random() * n), questionIndex: this.q })
+      }
+    }]);
+  }
+
+  stop() { this.dead = true; }
+}
+
+/* ================= BLOOKET ================= */
+class Blooket {
+  constructor(pin, name, idx) { this.pin = pin; this.name = name; this.idx = idx; this.dead = false; }
+  async start() {
+    live++; bump();
+    const r = await PX('https://api.blooket.com/api/firebase/join', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json;charset=UTF-8',
+        accept: 'application/json, text/plain, */*',
+        referer: 'https://www.blooket.com/',
+        origin: 'https://www.blooket.com'
+      },
+      body: JSON.stringify({ id: String(this.pin), gameId: String(this.pin), name: this.name })
+    });
+    if (r.status === 200 && !/"error"/i.test(r.text || '')) {
+      ok++; say(`✅ ${this.name} joined Blooket`); this.token = r.text;
+    } else {
+      say(`${this.name}: ✗ ${r.status} ${String(r.text || r.error).slice(0, 100)}`, 'e');
+    }
+    bump();
+  }
+  stop() { this.dead = true; live--; bump(); }
+}
+
+/* ================= WAYGROUND ================= */
+class Wayground {
+  constructor(pin, name, idx) { this.pin = pin; this.name = name; this.idx = idx; this.dead = false; }
+  async start() {
+    live++; bump();
+    const tries = [
+      ['https://game.quizizz.com/play-api/v4/joinGame', { roomCode: String(this.pin), name: this.name }],
+      ['https://wayground.com/_api/main/joinGame', { roomCode: String(this.pin), name: this.name }],
+      ['https://quizizz.com/_api/main/joinGame', { roomCode: String(this.pin), name: this.name }]
+    ];
+    let last = '';
+    for (const [url, body] of tries) {
+      const r = await PX(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json;charset=UTF-8', accept: 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (r.status === 200 && !/"error"/i.test(r.text || '')) {
+        ok++; say(`✅ ${this.name} joined Wayground`); bump(); return;
+      }
+      last = `${r.status} ${String(r.text || r.error || '').slice(0, 80)}`;
+    }
+    say(`${this.name}: ✗ ${last}`, 'e');
+    bump();
+  }
+  stop() { this.dead = true; live--; bump(); }
+}
+
+/* ================= CONTROL ================= */
+const CLASS = { kahoot: Kahoot, blooket: Blooket, wayground: Wayground };
+
+async function spawn(n) {
+  const pin = $('pin').value.trim();
+  if (!pin) return alert('Enter the game code first');
+  const pre = ($('prefix').value.trim() || 'bot').slice(0, 8);
+  say(`— starting ${n} ${game} bots —`, 'b');
+  for (let i = 1; i <= n; i++) {
+    const name = `${pre}${i}_${NAMES[Math.floor(Math.random() * NAMES.length)]}`.slice(0, 15);
+    const bot = new CLASS[game](pin, name, i);
+    bots.push(bot);
+    bot.start().catch(e => say(`${name}: ${e}`, 'e'));
+    if (i % 5 === 0) await sleep(60);
+  }
+}
+
+document.querySelectorAll('.presets button').forEach(b => b.onclick = () => spawn(+b.dataset.n));
+$('test').onclick = () => spawn(1);
+$('stop').onclick = () => {
+  bots.forEach(b => b.stop && b.stop());
+  bots = []; live = 0; ok = 0; bump(); say('— stopped —', 'b');
+};
+</script>
+</body>
+</html>
