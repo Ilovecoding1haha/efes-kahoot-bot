@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Bots</title>
+<style>
+  :root{--bg:#0b0d14;--card:#151a26;--line:#252c3d;--txt:#e9eef7;--mut:#8b93a8;--acc:#7c5cff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 system-ui,sans-serif;padding:22px 16px 60px}
+  .wrap{max-width:620px;margin:0 auto}
+  h1{text-align:center;font-size:24px;margin:0 0 4px}
+  .sub{text-align:center;color:var(--mut);font-size:13px;margin:0 0 18px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{flex:1;text-align:center;padding:11px;border:1px solid var(--line);border-radius:11px;cursor:pointer;color:var(--mut);font-weight:600;background:var(--card)}
+  .tab.on{border-color:var(--acc);color:#fff;background:#1b1f33}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  label{display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);margin:0 0 6px}
+  input{width:100%;background:#0d1119;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:12px;font:15px ui-monospace,monospace}
+  input:focus{outline:none;border-color:var(--acc)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 10px}
+  .presets button{padding:14px;border:0;border-radius:12px;font:700 15px system-ui;color:#fff;cursor:pointer;background:linear-gradient(135deg,#7c5cff,#3b82f6)}
+  .presets small{display:block;font-weight:500;font-size:11px;opacity:.75;margin-top:2px}
+  #test,#stop{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#1b1f33;color:#e9eef7;font:600 13px system-ui;cursor:pointer}
+  #stop{margin-top:10px}
+  .log{margin-top:16px;background:#0d1119;border:1px solid var(--line);border-radius:12px;padding:12px;height:260px;overflow:auto;font:12px ui-monospace,monospace;color:#9fe6a0;white-space:pre-wrap}
+  .log .b{color:#8b93a8}
+  .log .e{color:#ff9b9b}
+  .count{text-align:center;color:var(--mut);font-size:13px;margin-top:12px}
+  .count b{color:#7ee787}
+  .tip{color:var(--mut);font-size:12px;text-align:center;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 Game Bots</h1>
+  <p class="sub">Runs through your own Vercel server — works on school wifi.</p>
+
+  <div class="tabs">
+    <div class="tab on" data-g="kahoot">Kahoot</div>
+    <div class="tab" data-g="blooket">Blooket</div>
+    <div class="tab"
